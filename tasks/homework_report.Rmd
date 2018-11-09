@@ -1,0 +1,74 @@
+---
+title: "Homework Report"
+author: "Paulo Souza"
+output:
+  pdf_document: default
+  html_notebook: default
+  html_document:
+    df_print: paged
+---
+## Introduction
+
+This laboratory book describes the methodology adopted in order to analyze different aspects regarding transit accidents recorded by a public company responsible for managing the public transport in the city of Porto Alegre (Brazil) in 2012.
+
+## Environment Setup
+
+Firstly, I import the libraries that will be used throughout the data analysis.
+
+```{r importing_libraries, include=TRUE, message=FALSE}
+library(ggplot2);
+library(dplyr);
+library(readr)
+```
+
+## Analysis of Dataset Semantics
+
+Once the base libraries are loaded in the R session, I download the CSV file containing the transit accidents from 2012 in Porto Alegre and store it into the `df` variable.
+
+```{r downloading_dataset, include=TRUE, message=FALSE}
+URL <- "http://www.opendatapoa.com.br/storage/f/2013-11-08T12%3A32%3A00.175Z/acidentes-2012.csv";
+df <- read_delim(URL, delim=";");
+```
+
+As soon as I got the dataset, I decided to take a look on it in order to understand how the data was organized.
+
+```{r reading_dataset}
+df
+```
+
+Then, I realized that the columns were not so self-explaining as I would like. So, I decided to take a look at the website in order to catch the real meaning of the columns. As a result, I found a file that explains each of the columns presented in the dataset. Thus, I would recommend read [this file](http://www.datapoa.com.br/dataset/acidentes-de-transito/resource/4ea70f3b-091b-46d0-a205-5ab64414a1ce) before reading the remaining of this laboratory book.
+
+## Question 1: What the Time of the Day with Most Transit Accidents
+
+As soon as I realized the meaning of each of the dataset columns, I decided to analyze **what the time of the day with most transit accidents** to identify if there all rows were filled correctly. To do so, I checked if all rows of the column `NOITE_DIA` (NOITE_DIA stands for NIGHT_DAY but in portuguese) were filled.
+
+```{r}
+count(df) == df %>% filter(!is.na(NOITE_DIA) &&
+!is.null(NOITE_DIA) && !is.nan(NOITE_DIA)) %>% summarise(N = n())
+```
+
+After noticing that all rows were filled out, I decided to analyze how many accidents occurred in each of the shifts of the day. To do so, I first used the `select()` function to get only the shift column (`NOITE_DIA`), then I grouped the data using the `group_by()` function. Then, In order to get a count of the occurrences of each shift I used the `tally()` function.
+
+```{r}
+ df %>% select(NOITE_DIA) %>% group_by(NOITE_DIA) %>% tally()
+```
+
+After having the number of accidents per shift of the day, I just sent this data as a parameter to `ggplot()` in order to get the chart.
+
+```{r fig.show="hide"}
+df %>% filter(!is.na(NOITE_DIA)) %>% select(NOITE_DIA) %>% group_by(NOITE_DIA) %>% tally() %>%
+  ggplot(aes(x=NOITE_DIA, y=n)) + geom_point()
+```
+
+As soon as I realized that I got the chart I wanted, I customized some of the visual parameters of `ggplot()` in order to get a more sophisticated representation of the data.
+
+```{r echo=FALSE, out.width="300px", out.height="200px", fig.align="center"}
+df %>% filter(!is.na(NOITE_DIA)) %>% select(NOITE_DIA) %>% group_by(NOITE_DIA) %>% tally() %>%
+  ggplot(aes(x=NOITE_DIA, y=n)) + geom_point(size = 4) + theme_bw() +
+  scale_x_discrete(labels = c("\nDay", "\nNight")) +
+  theme(plot.title = element_text(size = 18, face = "bold", hjust = .5),
+        axis.text.x = element_text(size = 11), axis.text.y = element_text(size = 11),
+        axis.title.x = element_text(size = 15, face = "bold"),
+        axis.title.y = element_text(size = 15, face = "bold")) +
+  labs(title = "Number of Transit Accidents by Shift\n", x = "\nShift", y = "Number of Accidents\n")
+```

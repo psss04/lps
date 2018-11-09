@@ -1,0 +1,38 @@
+---
+title: "Project Proposal"
+author: "Paulo Souza"
+output:
+  pdf_document: default
+  html_notebook: default
+  html_document:
+    df_print: paged
+---
+
+# Dataset Information
+
+The dataset contains information about the players that have won the NBA's Men of the Week's award. The NBA (National Basketball Association) is a men's professional basketball league in North America; composed of 30 teams (29 in the United States and 1 in Canada). It is widely considered to be the premier men's professional basketball league in the world [[Wikipedia](https://en.wikipedia.org/wiki/National_Basketball_Association)]. This dataset was obtained from [Kaggle](https://www.kaggle.com/jacobbaruch/nba-player-of-the-week).
+
+# Dataset Semantics
+
+Each row of the dataset contains the following information about each player awarded with the Player of the Week prize:
+
+- Age (player age at the time)
+- Conference (East/West/NaN)
+- Date (award date)
+- Draft Year
+- Height (in feets)
+- Player
+- Position
+- Season
+- Season short (season ending year)
+- Seasons in league
+- Team
+- Weight (in pounds)
+- Real_value (If two awards given at the same week [East & West] the player got 0.5, else 1 point)
+
+# Questions to Answer
+
+  - Which players have won the Player of the Week award most times?
+  - How many nominations each Conference had throughout the years?
+  - What are the most common characteristics (age, height, weight) among players that have won the Player of the Week award?
+  - Which teams whose players won the prize most often?

@@ -1,0 +1,147 @@
+---
+title: "Laboratory Notebook"
+author: "Paulo Souza"
+output:
+  pdf_document: default
+  html_notebook: default
+  html_document:
+    df_print: paged
+---
+## Introduction
+
+This laboratory book describes the methodology adopted in order to analyze different aspects regarding transit accidents recorded by a public company responsible for managing the public transport in the city of Porto Alegre (Brazil) in 2012.
+
+## Environment Setup
+
+Firstly, I import the libraries that will be used throughout the data analysis.
+
+```{r importing_libraries, include=TRUE, message=FALSE}
+library(ggplot2);
+library(dplyr);
+library(readr)
+```
+
+## Analysis of Dataset Semantics
+
+Once the base libraries are loaded in the R session, I download the CSV file containing the transit accidents from 2012 in Porto Alegre and store it into the `df` variable.
+
+```{r downloading_dataset, include=TRUE, message=FALSE}
+URL <- "http://www.opendatapoa.com.br/storage/f/2013-11-08T12%3A32%3A00.175Z/acidentes-2012.csv";
+df <- read_delim(URL, delim=";");
+```
+
+As soon as I got the dataset, I decided to take a look on it in order to understand how the data was organized.
+
+```{r reading_dataset}
+df
+```
+
+Then, I realized that the columns were not so self-explaining as I would like. So, I decided to take a look at the website in order to catch the real meaning of the columns. As a result, I found a file that explains each of the columns presented in the dataset. Thus, I would recommend read [this file](http://www.datapoa.com.br/dataset/acidentes-de-transito/resource/4ea70f3b-091b-46d0-a205-5ab64414a1ce) before reading the remaining of this laboratory book.
+
+## Question 1
+
+As soon as I realized the meaning of each of the dataset columns, I decided to analyze **what the time of the day with most transit accidents** to identify if there all rows were filled correctly. To do so, I checked if all rows of the column `NOITE_DIA` (NOITE_DIA stands for NIGHT_DAY but in portuguese) were filled.
+
+```{r}
+count(df) == df %>% filter(!is.na(NOITE_DIA) &&
+!is.null(NOITE_DIA) && !is.nan(NOITE_DIA)) %>% summarise(N = n())
+```
+
+After noticing that all rows were filled out, I decided to analyze how many accidents occurred in each of the shifts of the day. To do so, I first used the `select()` function to get only the shift column (`NOITE_DIA`), then I grouped the data using the `group_by()` function. Then, In order to get a count of the occurrences of each shift I used the `tally()` function.
+
+```{r}
+ df %>% select(NOITE_DIA) %>% group_by(NOITE_DIA) %>% tally()
+```
+
+After having the number of accidents per shift of the day, I just sent this data as a parameter to `ggplot()` in order to get the chart.
+
+```{r echo=FALSE, out.width="300px", out.height="200px", fig.align="center"}
+df %>% filter(!is.na(NOITE_DIA)) %>% select(NOITE_DIA) %>% group_by(NOITE_DIA) %>% tally() %>%
+  ggplot(aes(x=NOITE_DIA, y=n)) + geom_point()
+```
+
+As soon as I realized that I got the chart I wanted, I customized some of the visual parameters of `ggplot()` in order to get a more sophisticated representation of the data.
+
+```{r echo=FALSE, out.width="300px", out.height="200px", fig.align="center"}
+df %>% filter(!is.na(NOITE_DIA)) %>% select(NOITE_DIA) %>% group_by(NOITE_DIA) %>% tally() %>%
+  ggplot(aes(x=NOITE_DIA, y=n)) + geom_point(size = 4) + theme_bw() +
+  scale_x_discrete(labels = c("\nDay", "\nNight")) +
+  theme(plot.title = element_text(size = 18, face = "bold", hjust = .5),
+        axis.text.x = element_text(size = 11), axis.text.y = element_text(size = 11),
+        axis.title.x = element_text(size = 15, face = "bold"),
+        axis.title.y = element_text(size = 15, face = "bold")) +
+  labs(title = "Number of Transit Accidents by Shift\n", x = "\nShift", y = "Number of Accidents\n")
+```
+
+## Question 2
+
+Then, I moved to another question: **"What types of accidents are more common?"**. In order to answer it, I first used the `filter()` function to get only the rows in which the column regarding the type of accident (`TIPO_ACID`) was correctly filled. Then, in order to get a easier visualization of the results I called the `select()` function to get rid of the other columns since I was just interested about the kind accident of each occurrence.
+
+```{r number_of_accidents_per_type1}
+df %>% filter(!is.na(TIPO_ACID)) %>% select(TIPO_ACID)
+
+```
+
+Then, I grouped the data according to the type of accident with the `group_by()` function, and passed it as parameter to `ggplot()` to get the chart.
+
+```{r number_of_accidents_per_type2, echo=FALSE, out.width="300px", out.height="200px", fig.align="center"}
+df %>% filter(!is.na(TIPO_ACID)) %>% select(TIPO_ACID) %>% group_by(TIPO_ACID) %>%
+  ggplot(aes(x=TIPO_ACID)) + geom_bar()
+```
+
+After checking if the data was plotted in the way I wanted, I changed some parameters of `ggplot()` to get a fancier chart.
+
+
+```{r number_of_accidents_per_type3, echo=FALSE, out.width="300px", out.height="200px", fig.align="center"}
+df %>% filter(!is.na(TIPO_ACID)) %>% select(TIPO_ACID) %>% group_by(TIPO_ACID) %>%
+  arrange(TIPO_ACID) %>% ggplot(aes(x=TIPO_ACID)) + geom_bar() + theme_bw() +
+  theme(plot.title = element_text(size = 18, face = "bold", hjust = .5),
+        axis.text.x = element_text(size = 11, angle = 60, hjust = 1),
+        axis.text.y = element_text(size = 11),
+        axis.title.x = element_text(size = 15, face = "bold"),
+        axis.title.y = element_text(size = 15, face = "bold")) +
+  labs(title = "Number of Occurrences per Type of Accident\n",
+       x = "\nType of Accident", y = "Number of Accidents\n")
+
+```
+
+## Question 3
+
+The third question I wanted to answer about the transit accidents was if **the number of deaths increased or decreased throughout the year**. Thus, I first selected the columns regarding number of deaths (`FATAIS`) and the date of the accident (`DATA_HORA`). Then, I look foward to a way to parse the timestamp data provided in `DATA_HORA` in order to get only the month of each of the accidents. Thus, I found in the Internet that I could do this by using the `format()` function. Then, I used the `mutate()` function to create a new column (called `MES`) in the dataset corresponding to the month in which each of the accidents happened.
+
+```{r number_of_accidents_per_month1}
+  df %>% select(FATAIS, DATA_HORA) %>% mutate(MES = format(DATA_HORA, "%m"))
+```
+
+Then, I just had to use the `group_by()` function to group the accidents according to the month in which they happened, and call the `tally()` function to get the count of accidents per month.
+
+```{r number_of_accidents_per_month2}
+  df %>% select(FATAIS, DATA_HORA) %>% mutate(MES = format(DATA_HORA, "%m")) %>%
+  group_by(MES) %>% tally()
+```
+
+After having summarised the accidents per month, I passed it as a parameter to ggplot2 in order to get the chart.
+
+```{r number_of_accidents_per_month3, echo=FALSE, out.width="300px", out.height="200px", fig.align="center"}
+  df %>% select(FATAIS, DATA_HORA) %>% mutate(MES = format(DATA_HORA, "%m")) %>%
+  group_by(MES) %>% tally() %>%
+  ggplot(aes(x = MES, y = n)) + geom_point()
+```
+
+Finally, I just customized some visual properties of `ggplot2()` in order to have a more attractive chart.
+
+```{r number_of_accidents_per_month4, echo=FALSE, out.width="300px", out.height="200px", fig.align="center"}
+  df %>% select(FATAIS, DATA_HORA) %>% mutate(MES = format(DATA_HORA, "%m")) %>%
+  group_by(MES) %>% tally() %>%
+  ggplot(aes(x = MES, y = n)) + geom_point(size = 3) +
+  scale_x_discrete(label = c("January", "February", "March", "April", "May",
+  "June", "July", "August", "September", "October", "November", "December")) +
+  theme_bw() +
+  theme(plot.title = element_text(size = 18, face = "bold", hjust = .5),
+        axis.text.x = element_text(size = 11, angle = 60, hjust = 1),
+        axis.text.y = element_text(size = 11),
+        axis.title.x = element_text(size = 15, face = "bold"),
+        axis.title.y = element_text(size = 15, face = "bold")) +
+  labs(title = "Number of Transit Accidents per Month\n", x = "\nMonth",
+  y = "Number of Accidents\n")
+```
