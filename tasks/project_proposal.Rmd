@@ -30,9 +30,66 @@ Each row of the dataset contains the following information about each player awa
 - Weight (in pounds)
 - Real_value (If two awards given at the same week [East & West] the player got 0.5, else 1 point)
 
-# Questions to Answer
 
-  - Which players have won the Player of the Week award most times?
-  - How many nominations each Conference had throughout the years?
-  - What are the most common characteristics (age, height, weight) among players that have won the Player of the Week award?
-  - Which teams whose players won the prize most often?
+# Data Analysis
+
+Firstly, I read the dataset and call the `summary()` function in order to get some insights about the data.
+
+```{R}
+rm(list=ls())
+library(dplyr)
+dataset <- read.csv("NBA_player_of_the_week.csv")
+summary(dataset)
+```
+
+According to the `summary()` function output, there are 384 entries in the dataset in which the Conference field is not filled. Hence, I'm gonna print the first lines of the dataset with the `head()` function to check how I could fix it.
+
+```{R}
+head(dataset)
+```
+
+The output of the `head()` function was actually very useful since I realized that I could just use the team name as a reference in order to fill the empty Conference fields. I mean, as far as I know, most of the teams active nowadays already exist back in the 80s (date of the first records in the dataset), so I could just compare the teams of the filled rows with the teams of the empty ones, and if the team is the same in both lines, then I should be able to get the name of the conference of those empty rows. In order to do that, I'm gonna create a loop that goes through each row of the dataset that contains a value in the Conference field, then I just have to tell R to replace the field Conference of each other lines of the same team with the value I get from the Conference field of that line:
+
+```{R}
+
+```
+
+```{R}
+for (i in 1:as.integer(dataset %>% tally()))
+{
+  if (toString(dataset[i, 4]) != "")
+  {
+    for (j in 1:as.integer(dataset %>% filter(Conference == "") %>% tally()))
+    {
+      if (dataset[i, 3] == dataset[j, 3])
+      {
+        dataset[j, 4] = dataset[i, 4]
+      }
+    }
+  }
+}
+summary(dataset)
+```
+
+
+Even doing the aforementioned adjust, I realized that there are still 8 entries without a value in the Conference field. Thus, I decided to print those values in order to check what I could do.
+
+
+```{R}
+dataset %>% filter(Conference == "")
+```
+
+According to the output of the previous command, only the entries of Washington Bullets players are still without a content in the Conference field. That's a little awkward because I don't believe none of the players of this team own the Player of the Week since 1997. Then, I decided to do some research on Washington Bullets: According to [Wikipedia](https://en.wikipedia.org/wiki/Washington_Wizards), in 1997 the director board of the Washington Bullets rebranded themselves as the Wizards.
+
+Thus, I decided to print out the records of players of Washington Wizards and check which conference it belongs in order to update the Conference field in the old records of the team.
+
+```{R}
+dataset %>% filter(Team == "Washington Wizards") %>% select(Conference)
+# Conference: East
+summary(dataset)
+dataset %>% filter(Conference == "")
+```
+
+
+
+
