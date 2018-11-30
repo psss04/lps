@@ -1,0 +1,209 @@
+---
+title: "Project Proposal"
+author: "Paulo Souza"
+output:
+  pdf_document: default
+  html_notebook: default
+  html_document:
+    df_print: paged
+---
+
+# Dataset Information
+
+The dataset contains information about the players that have won the NBA's Men of the Week's award. The NBA (National Basketball Association) is a men's professional basketball league in North America; composed of 30 teams (29 in the United States and 1 in Canada). It is widely considered to be the premier men's professional basketball league in the world [[Wikipedia](https://en.wikipedia.org/wiki/National_Basketball_Association)]. This dataset was obtained from [Kaggle](https://www.kaggle.com/jacobbaruch/nba-player-of-the-week).
+
+# Dataset Semantics
+
+Each row of the dataset contains the following information about each player awarded with the Player of the Week prize:
+
+- Age (player age at the time)
+- Conference (East/West/NaN)
+- Date (award date)
+- Draft Year
+- Height (in feets)
+- Player
+- Position
+- Season
+- Season short (season ending year)
+- Seasons in league
+- Team
+- Weight (in pounds)
+- Real_value (If two awards given at the same week [East & West] the player got 0.5, else 1 point)
+
+
+# Data Analysis
+
+Firstly, I read the dataset and call the `summary()` function in order to get some insights about the data.
+
+```{r downloading_dataset, include=TRUE}
+rm(list=ls())
+library(dplyr)
+library(ggplot2)
+dataset <- read.csv("NBA_player_of_the_week.csv")
+summary(dataset)
+```
+
+According to the `summary()` function output, there are 384 entries in the dataset in which the Conference field is not filled. Hence, I'm gonna print the first lines of the dataset with the `head()` function to check how I could fix it.
+
+```{r}
+head(dataset)
+```
+
+The output of the `head()` function was actually very useful since I realized that I could just use the team name as a reference in order to fill the empty Conference fields. I mean, as far as I know, most of the teams active nowadays already exist back in the 80s (date of the first records in the dataset), so I could just compare the teams of the filled rows with the teams of the empty ones, and if the team is the same in both lines, then I should be able to get the name of the conference of those empty rows. In order to do that, I'm gonna create a loop that goes through each row of the dataset that contains a value in the Conference field, then I just have to tell R to replace the field Conference of each other lines of the same team with the value I get from the Conference field of that line:
+
+```{r}
+rows = as.integer(dataset %>% count())
+for (i in 1:rows)
+{
+  if (toString(dataset[i, 2]) != "")
+  {
+    for (j in 1:rows)
+    {
+      if (dataset[i, 11] == dataset[j, 11])
+      {
+        dataset[j, 2] = dataset[i, 2]
+      }
+    }
+  }
+}
+summary(dataset)
+head(dataset)
+```
+
+Even doing the aforementioned adjust, I realized that there are still 8 entries without a value in the Conference field. Thus, I decided to print those values in order to check what I could do.
+
+```{r}
+dataset %>% filter(Conference == "")
+```
+
+
+According to the output of the previous command, only the entries of Washington Bullets players are still without content in the Conference field. That's a little awkward because I don't believe none of the players of this team own the Player of the Week since 1997. Then, I decided to do some research on Washington Bullets: According to [Wikipedia](https://en.wikipedia.org/wiki/Washington_Wizards), in 1997 the director board of the Washington Bullets rebranded themselves as the Wizards.
+
+Thus, I decided to print out the records of players of Washington Wizards and check which conference it belongs in order to update the Conference field in the old records of the team, and finally I use `filter()` and `count()` functions in order to check the number of entries without conference remaining.
+
+```{r}
+dataset %>% filter(Team == "Washington Wizards") %>% select(Conference)
+# Washington Wizards Conference: East
+rows = as.integer(dataset %>% count())
+for (i in 1:rows)
+{
+  if (toString(dataset[i, 11]) == "Washington Bullets")
+  {
+    dataset[i, 11] = "Washington Wizards"
+    dataset[i, 2] = "East"
+  }
+}
+dataset %>% filter(Conference == "") %>% count()
+```
+
+After realizing the data are well formatted, I decided to start the actual data analysis. I used the `pairs()` function to analyze the correlation between BMI and the number of nominations to the Player of The Week award.
+
+```{r}
+data = dataset %>% select(Player, Height, Weight, Conference, Age) %>%
+group_by(Player) %>% summarise(Height = transformHeight(toString(first(Height))),
+Weight = transformWeight(first(Weight)), Conference = first(Conference),
+Age = mean(Age), n = n()) %>% mutate(BMI = Weight / (Height * Height)) %>% arrange(desc(n))
+data %>% pairs()
+```
+
+
+Firstly, I wanted to check which players most have owned the Player of the Week award.
+
+```{r}
+dataset %>% select(Player, Conference, Age, Position) %>% group_by(Player) %>%
+  summarise(n = n()) %>% arrange(desc(n)) %>% head(10) %>%
+  ggplot(aes(x=Player, y=n)) + geom_point(size = 4) + theme_bw() +
+  theme(plot.title = element_text(size = 18, face = "bold", hjust = .5),
+        axis.text.x = element_text(size = 11, angle = 45, hjust = 1),
+        axis.text.y = element_text(size = 11),
+        axis.title.x = element_text(size = 15, face = "bold"),
+        axis.title.y = element_text(size = 15, face = "bold")) +
+  labs(title = "Top 10 Players with Most\n'Player of the Week' Nominations\n",
+       x = "\nPlayer", y = "Number of Nominations\n")
+```
+
+The results were slightly surprising since Lebron James appeared with a crushing advantage above the other players. After doing some research on the possible reasons for that result, I discovered that Lebron James' team (Cleveland Cavaliers) won the last 5 titles of his conference. Before joining the Cavaliers, Lebron played for Miami Heat (from 2010-2014), and that team won its conference league 4 times in this period. Since the team performance directly affects the nomination to Player of The Week, it is reasonable that Lebron James to lead the ranking. 
+
+
+Moreover, I decided to analyze which characteristics are responsible for building that huge difference. When we are talking about people characteristics, one of the first measures that come into my mind is height and weight. Then, I decided to create charts to analyze the correlation between height and weight with the number of nominations to Player of The Week. In addition, I created functions to format height to meters and weight to kilos.
+
+```{r}
+# Transform Height in feets by default in the dataset to height in meters
+transformHeight <- function(height)
+{
+  foot = as.numeric(strsplit(height,'-')[[1]][1])
+  inches = as.numeric(strsplit(height,'-')[[1]][2])
+  return(((foot * 12 + inches) * 2.54) / 100)
+}
+# Transform Weight in pounds by default in the dataset to weight in kilos
+transformWeight <- function(weight)
+{
+  return(as.double(toString(weight)) * 0.453592)
+}
+```
+
+```{r}
+dataset %>% select(Player, Height, Conference) %>% group_by(Player) %>%
+summarise(Height = transformHeight(toString(first(Height))),
+Conference = first(Conference), n = n()) %>% arrange(desc(n)) %>% head(10) %>%
+ggplot(aes(x = Player, y = n, fill = Conference)) + geom_histogram(stat="identity") +
+geom_line(aes(y = Height, group = 1)) + theme_bw() +
+theme(plot.title = element_text(size = 18, face = "bold", hjust = .5),
+axis.text.x = element_text(size = 11, angle = 45, hjust = 1),
+axis.text.y = element_text(size = 11),
+axis.title.x = element_text(size = 15, face = "bold"),
+axis.title.y = element_text(size = 15, face = "bold")) +
+labs(title = "Height of the Top 10 Players with\n
+Most 'Player of the Week' Nominations\n", x = "\nPlayer", y = "Number of Nominations\n")
+```
+
+```{r}
+dataset %>% select(Player, Weight, Conference) %>% group_by(Player) %>%
+summarise(Weight = transformWeight(toString(first(Weight))),
+Conference = first(Conference), n = n()) %>% arrange(desc(n)) %>% head(10) %>%
+ggplot(aes(x = Player, y = n, fill = Conference)) + geom_histogram(stat="identity") +
+geom_line(aes(y = Weight, group = 1)) + theme_bw() +
+theme(plot.title = element_text(size = 18, face = "bold", hjust = .5),
+axis.text.x = element_text(size = 11, angle = 45, hjust = 1),
+axis.text.y = element_text(size = 11),
+axis.title.x = element_text(size = 15, face = "bold"),
+axis.title.y = element_text(size = 15, face = "bold")) +
+labs(title = "Weight of the Top 10 Players with\n
+Most 'Player of the Week' Nominations\n", x = "\nPlayer", y = "Number of Nominations\n")
+
+```
+
+In addition, I wanted to visualize the difference of these players regarding phisical attributes in a more specific way, so I decided to calculate the BMI (Body Mass Index), which is given by weight (in kilos) multiplied by height (in meters) squared:
+
+```{r}
+
+print(transformHeight(toString(dataset[1, 5])))
+dataset %>% select(Player, Height, Weight, Conference) %>% group_by(Player) %>%
+summarise(Height = transformHeight(toString(first(Height))),
+Weight = transformWeight(first(Weight)), Conference = first(Conference), n = n()) %>%
+mutate(BMI = Weight / (Height * Height)) %>% arrange(desc(n)) %>% head(10)
+```
+
+After formatting the data according to get the BMI of each of the players, I plotted the BMI of of the top 10 players with most Player of The Week nominations.
+
+
+```{r}
+data %>% head(10) %>% ggplot(aes(x = Player, y = n, fill = Conference)) +
+geom_histogram(stat="identity") + 
+geom_line(aes(y = BMI, group = 1)) + theme_bw() +
+theme(plot.title = element_text(size = 18, face = "bold", hjust = .5),
+axis.text.x = element_text(size = 11, angle = 45, hjust = 1),
+axis.text.y = element_text(size = 11),
+axis.title.x = element_text(size = 15, face = "bold"),
+axis.title.y = element_text(size = 15, face = "bold")) +
+labs(title = "Body Mass Index of the Top 10 Players with\nMost 'Player of the Week' Nominations\n",
+x = "\nPlayer", y = "Number of Nominations\n")
+```
+
+```{r}
+data %>% select(BMI) %>% filter(BMI != "") %>% mutate(BMI = mean(as.double(BMI))) %>% head(1)
+data %>% select(Weight) %>% filter(Weight != "") %>% mutate(Weight = mean(as.double(Weight))) %>% head(1)
+data %>% select(Height) %>% filter(Height != "") %>% mutate(Height = mean(as.double(Height))) %>% head(1)
+```
+
+The results showed that physical attributes such as weight and height (and consequently BMI) do not have a direct impact on the number of nominations to the Player of The Week award among the players with more than one nomination. However, it is possible to analyze that the winners have on average 99 kilos and 2 meters of height. In this sense, on average they have a BMI considered normal (24.5).
